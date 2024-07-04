@@ -23,15 +23,15 @@ all:
     #----------------------------------#
     # pgsql cluster: pg-test (1 nodes) #
     #----------------------------------#
-    # pg-test --->  158.101.99.211
+    # pg-test --->  172.28.5.161
     pg-test: # define the new 1-node cluster pg-test
       hosts:
-        158.101.99.211:
+        172.28.5.161:
           {
             pg_seq: 1,
             pg_role: primary,
-            ansible_user: opc,
-            ansible_ssh_private_key_file: ./files/sshkeys/ansible,
+            ansible_user: root,
+            ansible_ssh_pass: root,
           }
       vars:
         pg_cluster: pg-test # define pgsql cluster name
@@ -54,15 +54,15 @@ all:
     #----------------------------------#
     # pgsql cluster: pg-oci (1 nodes) #
     #----------------------------------#
-    # pg-oci --->  141.148.73.84
+    # pg-oci --->  172.28.5.162
     pg-oci: # define the new 1-node cluster pg-oci
       hosts:
-        141.148.73.84:
+        172.28.5.162:
           {
             pg_seq: 1,
             pg_role: primary,
-            ansible_user: opc,
-            ansible_ssh_private_key_file: ./files/sshkeys/ansible,
+            ansible_user: root,
+            ansible_ssh_pass: root,
           }
       vars:
         pg_cluster: pg-oci # define pgsql cluster name
@@ -71,6 +71,37 @@ all:
             {
               name: usr_testoci,
               password: usr_testoci,
+              pgbouncer: true,
+              roles: [dbrole_admin],
+            },
+          ]
+        pg_databases: [{ name: db_testoci }] # create a database and user named 'test'
+        node_tune: tiny
+        pg_conf: tiny.yml
+        node_crontab: # make a full backup on monday 1am, and an incremental backup during weekdays
+          - "00 01 * * 1 postgres /pg/bin/pg-backup full"
+          - "00 01 * * 2,3,4,5,6,7 postgres /pg/bin/pg-backup"
+
+    #----------------------------------#
+    # pgsql cluster: pg-melih (1 nodes) #
+    #----------------------------------#
+    # pg-melih --->  172.28.5.163
+    pg-melih: # define the new 1-node cluster pg-melih
+      hosts:
+        172.28.5.163:
+          {
+            pg_seq: 1,
+            pg_role: primary,
+            ansible_user: root,
+            ansible_ssh_pass: root,
+          }
+      vars:
+        pg_cluster: pg-melih # define pgsql cluster name
+        pg_users:
+          [
+            {
+              name: usr_testmelih,
+              password: usr_testmelih,
               pgbouncer: true,
               roles: [dbrole_admin],
             },
