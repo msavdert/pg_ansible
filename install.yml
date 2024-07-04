@@ -30,14 +30,3 @@
   tags: id
   roles:
     - { role: node_id, tags: node-id }
-
-#---------------------------------------------------------------
-# init node
-#---------------------------------------------------------------
-- name: NODE INIT
-  become: yes
-  hosts: all
-  gather_facts: no
-  tags: node-init
-  roles:
-    - { role: node, tags: node } # prepare node for pigsty
