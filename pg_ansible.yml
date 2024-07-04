@@ -26,12 +26,12 @@ all:
     # pg-test --->  158.101.99.211
     pg-test: # define the new 1-node cluster pg-test
       hosts:
-        158.101.99.211::
+        158.101.99.211:
           {
             pg_seq: 1,
             pg_role: primary,
             ansible_user: opc,
-            ansible_ssh_private_key_file: ./files/ansible,
+            ansible_ssh_private_key_file: ./files/sshkeys/ansible,
           }
       vars:
         pg_cluster: pg-test # define pgsql cluster name
@@ -47,9 +47,37 @@ all:
         pg_databases: [{ name: test }] # create a database and user named 'test'
         node_tune: tiny
         pg_conf: tiny.yml
-        pg_vip_enabled: true
-        pg_vip_address: 10.10.10.3/24
-        pg_vip_interface: eth1
+        node_crontab: # make a full backup on monday 1am, and an incremental backup during weekdays
+          - "00 01 * * 1 postgres /pg/bin/pg-backup full"
+          - "00 01 * * 2,3,4,5,6,7 postgres /pg/bin/pg-backup"
+
+    #----------------------------------#
+    # pgsql cluster: pg-oci (1 nodes) #
+    #----------------------------------#
+    # pg-oci --->  141.148.73.84
+    pg-oci: # define the new 1-node cluster pg-oci
+      hosts:
+        141.148.73.84:
+          {
+            pg_seq: 1,
+            pg_role: primary,
+            ansible_user: opc,
+            ansible_ssh_private_key_file: ./files/sshkeys/ansible,
+          }
+      vars:
+        pg_cluster: pg-oci # define pgsql cluster name
+        pg_users:
+          [
+            {
+              name: usr_testoci,
+              password: usr_testoci,
+              pgbouncer: true,
+              roles: [dbrole_admin],
+            },
+          ]
+        pg_databases: [{ name: db_testoci }] # create a database and user named 'test'
+        node_tune: tiny
+        pg_conf: tiny.yml
         node_crontab: # make a full backup on monday 1am, and an incremental backup during weekdays
           - "00 01 * * 1 postgres /pg/bin/pg-backup full"
           - "00 01 * * 2,3,4,5,6,7 postgres /pg/bin/pg-backup"
@@ -58,352 +86,6 @@ all:
   #                             VARS                                 #
   ####################################################################
   vars: # global variables
-    #================================================================#
-    #                         VARS: INFRA                            #
-    #================================================================#
-
-    #-----------------------------------------------------------------
-    # META
-    #-----------------------------------------------------------------
-    version: v2.7.0 # pigsty version string
-    admin_ip: 10.10.10.10 # admin node ip address
-    region: default # upstream mirror region: default,china,europe
-    proxy_env: # global proxy env when downloading packages
-      no_proxy: "localhost,127.0.0.1,10.0.0.0/8,192.168.0.0/16,*.pigsty,*.aliyun.com,mirrors.*,*.myqcloud.com,*.tsinghua.edu.cn"
-      # http_proxy:  # set your proxy here: e.g http://user:pass@proxy.xxx.com
-      # https_proxy: # set your proxy here: e.g http://user:pass@proxy.xxx.com
-      # all_proxy:   # set your proxy here: e.g http://user:pass@proxy.xxx.com
-
-    #-----------------------------------------------------------------
-    # CA
-    #-----------------------------------------------------------------
-    ca_method: create # create,recreate,copy, create by default
-    ca_cn: pigsty-ca # ca common name, fixed as pigsty-ca
-    cert_validity: 7300d # cert validity, 20 years by default
-
-    #-----------------------------------------------------------------
-    # INFRA_IDENTITY
-    #-----------------------------------------------------------------
-    #infra_seq: 1                     # infra node identity, explicitly required
-    infra_portal: # infra services exposed via portal
-      home: { domain: h.pigsty }
-      grafana:
-        { domain: g.pigsty, endpoint: "${admin_ip}:3000", websocket: true }
-      prometheus: { domain: p.pigsty, endpoint: "${admin_ip}:9090" }
-      alertmanager: { domain: a.pigsty, endpoint: "${admin_ip}:9093" }
-      blackbox: { endpoint: "${admin_ip}:9115" }
-      loki: { endpoint: "${admin_ip}:3100" }
-
-    #-----------------------------------------------------------------
-    # REPO
-    #-----------------------------------------------------------------
-    repo_enabled: true # create a yum repo on this infra node?
-    repo_home: /www # repo home dir, `/www` by default
-    repo_name: pigsty # repo name, pigsty by default
-    repo_endpoint: http://${admin_ip}:80 # access point to this repo by domain or ip:port
-    repo_remove: true # remove existing upstream repo
-    repo_modules: infra,node,pgsql # which repo modules are installed in repo_upstream
-    repo_upstream: # where to download
-      - {
-          name: pigsty-local,
-          description: "Pigsty Local",
-          module: local,
-          releases: [7, 8, 9],
-          baseurl: { default: "http://${admin_ip}/pigsty" },
-        } # used by intranet nodes
-      - {
-          name: pigsty-infra,
-          description: "Pigsty INFRA",
-          module: infra,
-          releases: [7, 8, 9],
-          baseurl:
-            {
-              default: "https://repo.pigsty.io/rpm/infra/$basearch",
-              china: "https://repo.pigsty.cc/rpm/infra/$basearch",
-            },
-        }
-      - {
-          name: pigsty-pgsql,
-          description: "Pigsty PGSQL",
-          module: pgsql,
-          releases: [7, 8, 9],
-          baseurl:
-            {
-              default: "https://repo.pigsty.io/rpm/pgsql/el$releasever.$basearch",
-              china: "https://repo.pigsty.cc/rpm/pgsql/el$releasever.$basearch",
-            },
-        }
-      - {
-          name: nginx,
-          description: "Nginx Repo",
-          module: infra,
-          releases: [7, 8, 9],
-          baseurl:
-            {
-              default: "https://nginx.org/packages/centos/$releasever/$basearch/",
-            },
-        }
-      - {
-          name: docker-ce,
-          description: "Docker CE",
-          module: infra,
-          releases: [7, 8, 9],
-          baseurl:
-            {
-              default: "https://download.docker.com/linux/centos/$releasever/$basearch/stable",
-              china: "https://mirrors.aliyun.com/docker-ce/linux/centos/$releasever/$basearch/stable",
-              europe: "https://mirrors.xtom.de/docker-ce/linux/centos/$releasever/$basearch/stable",
-            },
-        }
-      - {
-          name: baseos,
-          description: "EL 8+ BaseOS",
-          module: node,
-          releases: [8, 9],
-          baseurl:
-            {
-              default: "https://dl.rockylinux.org/pub/rocky/$releasever/BaseOS/$basearch/os/",
-              china: "https://mirrors.aliyun.com/rockylinux/$releasever/BaseOS/$basearch/os/",
-              europe: "https://mirrors.xtom.de/rocky/$releasever/BaseOS/$basearch/os/",
-            },
-        }
-      - {
-          name: appstream,
-          description: "EL 8+ AppStream",
-          module: node,
-          releases: [8, 9],
-          baseurl:
-            {
-              default: "https://dl.rockylinux.org/pub/rocky/$releasever/AppStream/$basearch/os/",
-              china: "https://mirrors.aliyun.com/rockylinux/$releasever/AppStream/$basearch/os/",
-              europe: "https://mirrors.xtom.de/rocky/$releasever/AppStream/$basearch/os/",
-            },
-        }
-      - {
-          name: extras,
-          description: "EL 8+ Extras",
-          module: node,
-          releases: [8, 9],
-          baseurl:
-            {
-              default: "https://dl.rockylinux.org/pub/rocky/$releasever/extras/$basearch/os/",
-              china: "https://mirrors.aliyun.com/rockylinux/$releasever/extras/$basearch/os/",
-              europe: "https://mirrors.xtom.de/rocky/$releasever/extras/$basearch/os/",
-            },
-        }
-      - {
-          name: powertools,
-          description: "EL 8 PowerTools",
-          module: node,
-          releases: [8],
-          baseurl:
-            {
-              default: "https://dl.rockylinux.org/pub/rocky/$releasever/PowerTools/$basearch/os/",
-              china: "https://mirrors.aliyun.com/rockylinux/$releasever/PowerTools/$basearch/os/",
-              europe: "https://mirrors.xtom.de/rocky/$releasever/PowerTools/$basearch/os/",
-            },
-        }
-      - {
-          name: crb,
-          description: "EL 9 CRB",
-          module: node,
-          releases: [9],
-          baseurl:
-            {
-              default: "https://dl.rockylinux.org/pub/rocky/$releasever/CRB/$basearch/os/",
-              china: "https://mirrors.aliyun.com/rockylinux/$releasever/CRB/$basearch/os/",
-              europe: "https://mirrors.xtom.de/rocky/$releasever/CRB/$basearch/os/",
-            },
-        }
-      - {
-          name: epel,
-          description: "EL 8+ EPEL",
-          module: node,
-          releases: [8, 9],
-          baseurl:
-            {
-              default: "http://download.fedoraproject.org/pub/epel/$releasever/Everything/$basearch/",
-              china: "https://mirrors.tuna.tsinghua.edu.cn/epel/$releasever/Everything/$basearch/",
-              europe: "https://mirrors.xtom.de/epel/$releasever/Everything/$basearch/",
-            },
-        }
-      - {
-          name: pgdg-common,
-          description: "PostgreSQL Common",
-          module: pgsql,
-          releases: [7, 8, 9],
-          baseurl:
-            {
-              default: "https://download.postgresql.org/pub/repos/yum/common/redhat/rhel-$releasever-$basearch",
-              china: "https://mirrors.tuna.tsinghua.edu.cn/postgresql/repos/yum/common/redhat/rhel-$releasever-$basearch",
-              europe: "https://mirrors.xtom.de/postgresql/repos/yum/common/redhat/rhel-$releasever-$basearch",
-            },
-        }
-      - {
-          name: pgdg-extras,
-          description: "PostgreSQL Extra",
-          module: pgsql,
-          releases: [7, 8, 9],
-          baseurl:
-            {
-              default: "https://download.postgresql.org/pub/repos/yum/common/pgdg-rhel$releasever-extras/redhat/rhel-$releasever-$basearch",
-              china: "https://mirrors.tuna.tsinghua.edu.cn/postgresql/repos/yum/common/pgdg-rhel$releasever-extras/redhat/rhel-$releasever-$basearch",
-              europe: "https://mirrors.xtom.de/postgresql/repos/yum/common/pgdg-rhel$releasever-extras/redhat/rhel-$releasever-$basearch",
-            },
-        }
-      - {
-          name: pgdg-el8fix,
-          description: "PostgreSQL EL8FIX",
-          module: pgsql,
-          releases: [8],
-          baseurl:
-            {
-              default: "https://download.postgresql.org/pub/repos/yum/common/pgdg-centos8-sysupdates/redhat/rhel-8-x86_64/",
-              china: "https://mirrors.tuna.tsinghua.edu.cn/postgresql/repos/yum/common/pgdg-centos8-sysupdates/redhat/rhel-8-x86_64/",
-              europe: "https://mirrors.xtom.de/postgresql/repos/yum/common/pgdg-centos8-sysupdates/redhat/rhel-8-x86_64/",
-            },
-        }
-      - {
-          name: pgdg-el9fix,
-          description: "PostgreSQL EL9FIX",
-          module: pgsql,
-          releases: [9],
-          baseurl:
-            {
-              default: "https://download.postgresql.org/pub/repos/yum/common/pgdg-rocky9-sysupdates/redhat/rhel-9-x86_64/",
-              china: "https://mirrors.tuna.tsinghua.edu.cn/postgresql/repos/yum/common/pgdg-rocky9-sysupdates/redhat/rhel-9-x86_64/",
-              europe: "https://mirrors.xtom.de/postgresql/repos/yum/common/pgdg-rocky9-sysupdates/redhat/rhel-9-x86_64/",
-            },
-        }
-      - {
-          name: pgdg16,
-          description: "PostgreSQL 16",
-          module: pgsql,
-          releases: [8, 9],
-          baseurl:
-            {
-              default: "https://download.postgresql.org/pub/repos/yum/16/redhat/rhel-$releasever-$basearch",
-              china: "https://mirrors.tuna.tsinghua.edu.cn/postgresql/repos/yum/16/redhat/rhel-$releasever-$basearch",
-              europe: "https://mirrors.xtom.de/postgresql/repos/yum/16/redhat/rhel-$releasever-$basearch",
-            },
-        }
-      - {
-          name: timescaledb,
-          description: "TimescaleDB",
-          module: pgsql,
-          releases: [7, 8, 9],
-          baseurl:
-            {
-              default: "https://packagecloud.io/timescale/timescaledb/el/$releasever/$basearch",
-            },
-        }
-      #- { name: pgdg16-nonfree ,description: 'PostgreSQL 16+'    ,module: pgsql ,releases: [  8,9] ,baseurl: { default: 'https://download.postgresql.org/pub/repos/yum/non-free/16/redhat/rhel-$releasever-$basearch' ,china: 'https://mirrors.tuna.tsinghua.edu.cn/postgresql/repos/yum/non-free/16/redhat/rhel-$releasever-$basearch' ,europe: 'https://mirrors.xtom.de/postgresql/repos/yum/non-free/16/redhat/rhel-$releasever-$basearch' }}
-    repo_packages:
-      - ansible python3 python3-pip python3-virtualenv python3-requests python3.11-jmespath python3.11-pip dnf-utils modulemd-tools createrepo_c sshpass # Distro & Boot
-      - nginx dnsmasq etcd haproxy vip-manager pg_exporter pgbackrest_exporter python3-jmespath python3-cryptography # Pigsty Addons
-      - grafana loki logcli promtail prometheus2 alertmanager pushgateway node_exporter blackbox_exporter nginx_exporter keepalived_exporter # Infra Packages
-      - redis_exporter docker-ce docker-compose-plugin redis minio mcli ferretdb duckdb # Miscellaneous
-      - lz4 unzip bzip2 zlib yum pv jq git ncdu make patch bash lsof wget uuid tuned nvme-cli numactl grubby sysstat iotop htop rsync tcpdump perf flamegraph # Node Packages 1
-      - netcat socat ftp lrzsz net-tools ipvsadm bind-utils telnet audit ca-certificates openssl openssh-clients readline vim-minimal keepalived chrony # Node Packages 2
-      - patroni patroni-etcd pgbouncer pgbadger pgbackrest pgloader pg_activity pg_filedump timescaledb-tools scws libduckdb libarrow-s3 pgFormatter luapgsql pgcopydb # PGDG Common
-      - postgresql16* pg_repack_16* wal2json_16* passwordcheck_cracklib_16* pglogical_16* pg_cron_16* postgis34_16* timescaledb-2-postgresql-16* pgvector_16* citus_16* # PGDG 16 Packages
-      - vault_16* pgjwt_16* pg_roaringbitmap_16* zhparser_16* hydra_16* apache-age_16* duckdb_fdw_16* pg_tde_16* md5hash_16* pg_dirtyread_16* plv8_16* parquet_s3_fdw_16* # Pigsty Extension (C)
-      - pgml_16 pg_graphql_16 wrappers_16 pg_jsonschema_16 pg_search_16 pg_lakehouse_16 pgmq_16 pg_tier_16 pg_later_16 pg_vectorize_16 pg_tiktoken_16 pgdd_16 plprql_16 pgsmcrypto_16 pg_idkit_16 pgvectorscale_16
-      - bgw_replstatus_16* count_distinct_16* credcheck_16* ddlx_16* e-maj_16* extra_window_functions_16* h3-pg_16* hdfs_fdw_16* hll_16* hypopg_16* ip4r_16* jsquery_16* # PGDG Extensions
-      - logerrors_16* login_hook_16* mongo_fdw_16* mysql_fdw_16* ogr_fdw_16* orafce_16* passwordcheck_cracklib_16* periods_16* pg_auth_mon_16* pg_auto_failover_16* pg_background_16* pgfincore_16* pgimportdoc_16* pgl_ddl_deploy_16* pgmemcache_16* pgmeminfo_16* pgmp_16* pgq_16* pgrouting_16* pgsodium_16* pgsql_gzip_16* pgsql_http_16* pgsql_tweaks_16*
-      - pgtt_16* pguint_16* pg_bigm_16* pg_bulkload_16* pg_catcheck_16* pg_checksums_16* pg_comparator_16* pg_dbms_lock_16* pg_dbms_metadata_16* pg_extra_time_16* pg_fact_loader_16* pg_failover_slots_16* pg_filedump_16* pg_fkpart_16* pg_hint_plan_16* pg_ivm_16* pg_jobmon_16* pg_net_16* pg_partman_16* pg_permissions_16* pg_prioritize_16* pg_profile_16*
-      - pg_qualstats_16* pg_readonly_16* pg_show_plans_16* pg_squeeze_16* pg_stat_kcache_16* pg_stat_monitor_16* pg_statement_rollback_16* pg_statviz_extension_16 pg_store_plans_16* pg_tle_16* pg_top_16* pg_track_settings_16* pg_uuidv7_16* pg_wait_sampling_16* pgagent_16* pgaudit_16* pgauditlogtofile_16* pgbouncer_fdw_16* pgcryptokey_16* pgexportdoc_16*
-      - pldebugger_16* pllua_16* plpgsql_check_16* plprofiler_16* plsh_16* pointcloud_16* postgres-decoderbufs_16* postgresql_anonymizer_16* postgresql_faker_16* powa-archivist_16* powa_16* prefix_16* rum_16 safeupdate_16* semver_16* set_user_16* sqlite_fdw_16* system_stats_16* tdigest_16* tds_fdw_16* temporal_tables_16* timestamp9_16* topn_16*
-    repo_url_packages:
-      - https://repo.pigsty.cc/etc/pev.html
-      - https://repo.pigsty.cc/etc/chart.tgz
-      - https://repo.pigsty.cc/etc/plugins.tgz
-
-    #-----------------------------------------------------------------
-    # INFRA_PACKAGE
-    #-----------------------------------------------------------------
-    infra_packages: # packages to be installed on infra nodes
-      - grafana,loki,logcli,promtail,prometheus2,alertmanager,pushgateway
-      - node_exporter,blackbox_exporter,nginx_exporter,pg_exporter
-      - nginx,dnsmasq,ansible,etcd,python3-requests,redis,mcli
-    infra_packages_pip: "" # pip installed packages for infra nodes
-
-    #-----------------------------------------------------------------
-    # NGINX
-    #-----------------------------------------------------------------
-    nginx_enabled: true # enable nginx on this infra node?
-    nginx_exporter_enabled: true # enable nginx_exporter on this infra node?
-    nginx_sslmode: enable # nginx ssl mode? disable,enable,enforce
-    nginx_home: /www # nginx content dir, `/www` by default
-    nginx_port: 80 # nginx listen port, 80 by default
-    nginx_ssl_port: 443 # nginx ssl listen port, 443 by default
-    nginx_navbar: # nginx index page navigation links
-      - { name: CA Cert, url: "/ca.crt", desc: "pigsty self-signed ca.crt" }
-      - { name: Package, url: "/pigsty", desc: "local yum repo packages" }
-      - { name: PG Logs, url: "/logs", desc: "postgres raw csv logs" }
-      - { name: Reports, url: "/report", desc: "pgbadger summary report" }
-      - {
-          name: Explain,
-          url: "/pigsty/pev.html",
-          desc: "postgres explain visualizer",
-        }
-
-    #-----------------------------------------------------------------
-    # DNS
-    #-----------------------------------------------------------------
-    dns_enabled: true # setup dnsmasq on this infra node?
-    dns_port: 53 # dns server listen port, 53 by default
-    dns_records: # dynamic dns records resolved by dnsmasq
-      - "${admin_ip} h.pigsty a.pigsty p.pigsty g.pigsty"
-      - "${admin_ip} api.pigsty adm.pigsty cli.pigsty ddl.pigsty lab.pigsty git.pigsty sss.pigsty wiki.pigsty"
-
-    #-----------------------------------------------------------------
-    # PROMETHEUS
-    #-----------------------------------------------------------------
-    prometheus_enabled: true # enable prometheus on this infra node?
-    prometheus_clean: true # clean prometheus data during init?
-    prometheus_data: /data/prometheus # prometheus data dir, `/data/prometheus` by default
-    prometheus_sd_dir: /etc/prometheus/targets # prometheus file service discovery directory
-    prometheus_sd_interval: 5s # prometheus target refresh interval, 5s by default
-    prometheus_scrape_interval: 10s # prometheus scrape & eval interval, 10s by default
-    prometheus_scrape_timeout: 8s # prometheus global scrape timeout, 8s by default
-    prometheus_options: "--storage.tsdb.retention.time=15d" # prometheus extra server options
-    pushgateway_enabled: true # setup pushgateway on this infra node?
-    pushgateway_options: "--persistence.interval=1m" # pushgateway extra server options
-    blackbox_enabled: true # setup blackbox_exporter on this infra node?
-    blackbox_options: "" # blackbox_exporter extra server options
-    alertmanager_enabled: true # setup alertmanager on this infra node?
-    alertmanager_options: "" # alertmanager extra server options
-    exporter_metrics_path: /metrics # exporter metric path, `/metrics` by default
-    exporter_install: none # how to install exporter? none,yum,binary
-    exporter_repo_url: "" # exporter repo file url if install exporter via yum
-
-    #-----------------------------------------------------------------
-    # GRAFANA
-    #-----------------------------------------------------------------
-    grafana_enabled: true # enable grafana on this infra node?
-    grafana_clean: true # clean grafana data during init?
-    grafana_admin_username: admin # grafana admin username, `admin` by default
-    grafana_admin_password: pigsty # grafana admin password, `pigsty` by default
-    grafana_plugin_cache: /www/pigsty/plugins.tgz # path to grafana plugins cache tarball
-    grafana_plugin_list: # grafana plugins to be downloaded with grafana-cli
-      - volkovlabs-echarts-panel
-      - volkovlabs-image-panel
-      - volkovlabs-form-panel
-      - volkovlabs-variable-panel
-      - volkovlabs-grapi-datasource
-      - marcusolsson-static-datasource
-      - marcusolsson-json-datasource
-      - marcusolsson-dynamictext-panel
-      - marcusolsson-treemap-panel
-      - marcusolsson-calendar-panel
-      - marcusolsson-hourly-heatmap-panel
-      - knightss27-weathermap-panel
-    loki_enabled: true # enable loki on this infra node?
-    loki_clean: false # whether remove existing loki data?
-    loki_data: /data/loki # loki data dir, `/data/loki` by default
-    loki_retention: 15d # loki log retention period, 15d by default
-
     #================================================================#
     #                         VARS: NODE                             #
     #================================================================#
@@ -416,18 +98,6 @@ all:
     nodename_overwrite: true # overwrite node's hostname with nodename?
     nodename_exchange: false # exchange nodename among play hosts?
     node_id_from_pg: true # use postgres identity as node identity if applicable?
-
-    #-----------------------------------------------------------------
-    # NODE_DNS
-    #-----------------------------------------------------------------
-    node_write_etc_hosts: true # modify `/etc/hosts` on target node?
-    node_default_etc_hosts: # static dns records in `/etc/hosts`
-      - "${admin_ip} h.pigsty a.pigsty p.pigsty g.pigsty"
-    node_etc_hosts: [] # extra static dns records in `/etc/hosts`
-    node_dns_method: add # how to handle dns servers: add,none,overwrite
-    node_dns_servers: ["${admin_ip}"] # dynamic nameserver in `/etc/resolv.conf`
-    node_dns_options: # dns resolv options in `/etc/resolv.conf`
-      - options single-request-reopen timeout:1
 
     #-----------------------------------------------------------------
     # NODE_PACKAGE
@@ -470,7 +140,7 @@ all:
     #-----------------------------------------------------------------
     # NODE_TIME
     #-----------------------------------------------------------------
-    node_timezone: "" # setup node timezone, empty string to skip
+    node_timezone: "America/New_York" # setup node timezone, empty string to skip
     node_ntp_enabled: true # enable chronyd time sync service?
     node_ntp_servers: # ntp servers in `/etc/chrony.conf`
       - pool pool.ntp.org iburst
@@ -502,29 +172,6 @@ all:
     haproxy_client_timeout: 24h # client side connection timeout, 24h by default
     haproxy_server_timeout: 24h # server side connection timeout, 24h by default
     haproxy_services: [] # list of haproxy service to be exposed on node
-
-    #-----------------------------------------------------------------
-    # NODE_EXPORTER
-    #-----------------------------------------------------------------
-    node_exporter_enabled: true # setup node_exporter on this node?
-    node_exporter_port: 9100 # node exporter listen port, 9100 by default
-    node_exporter_options: "--no-collector.softnet --no-collector.nvme --collector.tcpstat --collector.processes"
-
-    #-----------------------------------------------------------------
-    # PROMTAIL
-    #-----------------------------------------------------------------
-    promtail_enabled: true # enable promtail logging collector?
-    promtail_clean: false # purge existing promtail status file during init?
-    promtail_port: 9080 # promtail listen port, 9080 by default
-    promtail_positions: /var/log/positions.yaml # promtail position status file path
-
-    #================================================================#
-    #                        VARS: DOCKER                            #
-    #================================================================#
-    docker_enabled: false # enable docker on this node?
-    docker_cgroups_driver: systemd # docker cgroup fs driver: cgroupfs,systemd
-    docker_registry_mirrors: [] # docker registry mirror list
-    docker_image_cache: /tmp/docker # docker image cache dir, `/tmp/docker` by default
 
     #================================================================#
     #                         VARS: ETCD                             #
@@ -560,31 +207,6 @@ all:
     minio_users:
       - { access_key: dba, secret_key: S3User.DBA, policy: consoleAdmin }
       - { access_key: pgbackrest, secret_key: S3User.Backup, policy: readwrite }
-
-    #================================================================#
-    #                         VARS: REDIS                            #
-    #================================================================#
-    #redis_cluster:        <CLUSTER> # redis cluster name, required identity parameter
-    #redis_node: 1            <NODE> # redis node sequence number, node int id required
-    #redis_instances: {}      <NODE> # redis instances definition on this redis node
-    redis_fs_main: /data # redis main data mountpoint, `/data` by default
-    redis_exporter_enabled: true # install redis exporter on redis nodes?
-    redis_exporter_port: 9121 # redis exporter listen port, 9121 by default
-    redis_exporter_options: "" # cli args and extra options for redis exporter
-    redis_safeguard: false # prevent purging running redis instance?
-    redis_clean: true # purging existing redis during init?
-    redis_rmdata: true # remove redis data when purging redis server?
-    redis_mode: standalone # redis mode: standalone,cluster,sentinel
-    redis_conf: redis.conf # redis config template path, except sentinel
-    redis_bind_address: "0.0.0.0" # redis bind address, empty string will use host ip
-    redis_max_memory: 1GB # max memory used by each redis instance
-    redis_mem_policy: allkeys-lru # redis memory eviction policy
-    redis_password: "" # redis password, empty string will disable password
-    redis_rdb_save: ["1200 1"] # redis rdb save directives, disable with empty list
-    redis_aof_enabled: false # enable redis append only file?
-    redis_rename_commands: {} # rename redis dangerous commands
-    redis_cluster_replicas: 1 # replica number for one master in redis cluster
-    redis_sentinel_monitor: [] # sentinel master list, works on sentinel cluster only
 
     #================================================================#
     #                         VARS: PGSQL                            #
@@ -980,23 +602,3 @@ all:
     pg_vip_interface: eth0 # vip network interface to listen, eth0 by default
     pg_dns_suffix: "" # pgsql dns suffix, '' by default
     pg_dns_target: auto # auto, primary, vip, none, or ad hoc ip
-
-    #-----------------------------------------------------------------
-    # PG_EXPORTER
-    #-----------------------------------------------------------------
-    pg_exporter_enabled: true # enable pg_exporter on pgsql hosts?
-    pg_exporter_config: pg_exporter.yml # pg_exporter configuration file name
-    pg_exporter_cache_ttls: "1,10,60,300" # pg_exporter collector ttl stage in seconds, '1,10,60,300' by default
-    pg_exporter_port: 9630 # pg_exporter listen port, 9630 by default
-    pg_exporter_params: "sslmode=disable" # extra url parameters for pg_exporter dsn
-    pg_exporter_url: "" # overwrite auto-generate pg dsn if specified
-    pg_exporter_auto_discovery: true # enable auto database discovery? enabled by default
-    pg_exporter_exclude_database: "template0,template1,postgres" # csv of database that WILL NOT be monitored during auto-discovery
-    pg_exporter_include_database: "" # csv of database that WILL BE monitored during auto-discovery
-    pg_exporter_connect_timeout: 200 # pg_exporter connect timeout in ms, 200 by default
-    pg_exporter_options: "" # overwrite extra options for pg_exporter
-    pgbouncer_exporter_enabled: true # enable pgbouncer_exporter on pgsql hosts?
-    pgbouncer_exporter_port: 9631 # pgbouncer_exporter listen port, 9631 by default
-    pgbouncer_exporter_url: "" # overwrite auto-generate pgbouncer dsn if specified
-    pgbouncer_exporter_options: "" # overwrite extra options for pgbouncer_exporter
-

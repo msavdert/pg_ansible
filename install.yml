@@ -1,0 +1,43 @@
+#!/usr/bin/env ansible-playbook
+---
+#==============================================================#
+# File      :   install.yml
+# Desc      :   install everything on all nodes
+# Ctime     :   2023-Jul-01
+# Mtime     :   2023-Jul-03
+# Path      :   install.yml
+# Author    :   Melih Savdert (melihsavdert@gmail.com)
+# License   :   AGPLv3
+#==============================================================#
+
+#==============================================================#
+# install.yml will interleave infra.yml & node.yml in following
+# orders to set up everything in one pass
+# - id           : generate node & pgsql identity
+# - ca           : create self-signed CA on localhost
+# - node-init    : init node, haproxy & docker
+# - etcd         : init etcd (required for pgsql HA)
+# - minio        : init minio (optional)
+# - pgsql        : init pgsql
+#==============================================================#
+
+#---------------------------------------------------------------
+# setup node & pgsql identity
+#---------------------------------------------------------------
+- name: IDENTITY
+  hosts: all
+  gather_facts: no
+  tags: id
+  roles:
+    - { role: node_id, tags: node-id }
+
+#---------------------------------------------------------------
+# init node
+#---------------------------------------------------------------
+- name: NODE INIT
+  become: yes
+  hosts: all
+  gather_facts: no
+  tags: node-init
+  roles:
+    - { role: node, tags: node } # prepare node for pigsty
