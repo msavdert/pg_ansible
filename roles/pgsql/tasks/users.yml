@@ -1,5 +1,15 @@
 # file: postgresql/tasks/users.yml
 
+- name: PostgreSQL | FDW | Load OS specific variables
+  include_vars: "{{ lookup('first_found', params) }}"
+  vars:
+    params:
+      files:
+        - "{{ ansible_distribution }}.yml"
+        - "{{ ansible_os_family }}.yml"
+      paths:
+        - ../vars
+
 - name: PostgreSQL | Ensure PostgreSQL is running
   service:
     name: "{{ postgresql_service_name }}"
