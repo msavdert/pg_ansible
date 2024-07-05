@@ -47,7 +47,7 @@
 - name: PostgreSQL | Add uuid-ossp to the database with the requirement
   become: yes
   become_user: "{{postgresql_service_user}}"
-  shell: "{{ postgresql_bin_directory}}/psql {{item.name}} --port={{ postgresql_port | int }} --username {{postgresql_admin_user}} -c 'CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";'"
+  shell: '{{ postgresql_bin_directory}}/psql {{item.name}} --port={{ postgresql_port | int }} --username {{postgresql_admin_user}} -c ''CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'''
   with_items: "{{postgresql_databases}}"
   register: uuid_ext_result
   failed_when: uuid_ext_result.rc != 0 and ("already exists, skipping" not in uuid_ext_result.stderr)
@@ -64,7 +64,7 @@
 - name: PostgreSQL | add cube to the database with the requirement
   become: yes
   become_user: "{{postgresql_service_user}}"
-  shell: "{{ postgresql_bin_directory}}/psql {{item.name}} --port={{ postgresql_port | int }} --username {{ postgresql_admin_user }} -c 'create extension if not exists cube;'"
+  shell: "{{ postgresql_bin_directory}}/psql {{item.name}} --port={{ postgresql_port | int }} --username {{ postgresql_admin_user }} -c 'CREATE EXTENSION IF NOT EXISTS cube;'"
   with_items: "{{postgresql_databases}}"
   when: item.cube is defined and item.cube
 
@@ -78,7 +78,7 @@
 - name: PostgreSQL | add earthdistance to the database with the requirement
   become: yes
   become_user: "{{postgresql_service_user}}"
-  shell: "{{ postgresql_bin_directory}}/psql {{item.name}} --port={{ postgresql_port | int }} --username {{ postgresql_admin_user }} -c 'create extension if not exists earthdistance;'"
+  shell: "{{ postgresql_bin_directory}}/psql {{item.name}} --port={{ postgresql_port | int }} --username {{ postgresql_admin_user }} -c 'CREATE EXTENSION IF NOT EXISTS earthdistance;'"
   with_items: "{{postgresql_databases}}"
   when: item.earthdistance is defined and item.earthdistance
 
