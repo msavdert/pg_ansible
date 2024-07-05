@@ -1,7 +1,6 @@
 # file: postgresql/handlers/main.yml
 
 - name: restart postgresql
-  tags: [postgresql, postgresql-restart]
   service:
     name: "{{ postgresql_service_name }}"
     state: restarted

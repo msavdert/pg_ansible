@@ -18,3 +18,9 @@ all:
     #------------------------------------#
     pg_melih:
       hosts: { 172.28.5.163: { ansible_user: root, ansible_ssh_pass: root } }
+
+  ####################################################################
+  #                             VARS                                 #
+  ####################################################################
+  vars: # global variables
+    postgresql_service_user_pgsql_profile: true
