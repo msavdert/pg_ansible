@@ -6,4 +6,4 @@
   gather_facts: yes
   tags: pgsql
   roles:
-    - { role: pg_ansible, tags: pgsql-install }
+    - { role: pgsql, tags: pgsql-install }
