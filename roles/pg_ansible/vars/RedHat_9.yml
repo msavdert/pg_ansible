@@ -19,6 +19,7 @@ postgresql_fdw_mysql_packages: "mysql_fdw_{{ postgresql_version_terse }}"
 postgresql_fdw_ogr_packages: "ogr_fdw{{ postgresql_version_terse }}"
 
 postgresql_packages:
+  - sudo
   - ca-certificates
   - python3-psycopg2
   - python3-pycurl
