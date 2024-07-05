@@ -1,20 +1,20 @@
 ---
 all:
   children: # groups definition
-    #----------------------------------#
-    # pgsql cluster: pg_test (1 nodes) #
-    #----------------------------------#
+    #------------------------------------#
+    # pgsql cluster: pg_test (1 nodes)   #
+    #------------------------------------#
     pg_test:
       hosts: { 172.28.5.161: { ansible_user: root, ansible_ssh_pass: root } }
 
-    #----------------------------------#
-    # pgsql cluster: pg_test (1 nodes) #
-    #----------------------------------#
+    #------------------------------------#
+    # pgsql cluster: pg_oci (1 nodes)    #
+    #------------------------------------#
     pg_oci:
       hosts: { 172.28.5.162: { ansible_user: root, ansible_ssh_pass: root } }
 
-    #----------------------------------#
-    # pgsql cluster: pg_test (1 nodes) #
-    #----------------------------------#
+    #------------------------------------#
+    # pgsql cluster: pg_melih (1 nodes)  #
+    #------------------------------------#
     pg_melih:
       hosts: { 172.28.5.163: { ansible_user: root, ansible_ssh_pass: root } }
