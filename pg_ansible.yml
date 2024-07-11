@@ -1,0 +1,162 @@
+---
+all:
+  children: # groups definition
+    #---------------------------------#
+    # pg_test                         #
+    #---------------------------------#
+    pg_test:
+      hosts: { 172.28.5.161: { ansible_user: root, ansible_ssh_pass: root } } # ansible_ssh_private_key_file=./files/ansible
+
+    #----------------------------------#
+    # pg_oci                           #
+    #----------------------------------#
+    pg_oci:
+      hosts: { 172.28.5.162: { ansible_user: root, ansible_ssh_pass: root } }
+
+    #----------------------------------#
+    # pg_melih                         #
+    #----------------------------------#
+    pg_melih:
+      hosts: { 172.28.5.163: { ansible_user: root, ansible_ssh_pass: root } }
+
+  vars:
+
+    #-----------------------------------------------------------------
+    # NODE_PACKAGE
+    #-----------------------------------------------------------------
+    proxy_env:                        # global proxy env when downloading packages
+      no_proxy: "localhost,127.0.0.1,10.0.0.0/8,192.168.0.0/16,*.pigsty,*.aliyun.com,mirrors.*,*.myqcloud.com,*.tsinghua.edu.cn"
+      # http_proxy:  # set your proxy here: e.g http://user:pass@proxy.xxx.com
+      # https_proxy: # set your proxy here: e.g http://user:pass@proxy.xxx.com
+      # all_proxy:   # set your proxy here: e.g http://user:pass@proxy.xxx.com
+    node_epel_repo: true
+    node_packages_default:            # used according to `os_package`, if `node_default_packages` not set
+      dnf:
+        - lz4,unzip,bzip2,pv,jq,git,ncdu,make,patch,bash,lsof,wget,uuid,tuned,nvme-cli,numactl,sysstat,iotop,htop,cronie
+        - python3,python3-pip,socat,lrzsz,net-tools,ipvsadm,telnet,ca-certificates,openssl,chrony,rsync,tcpdump
+        - zlib,yum,audit,bind-utils,readline,vim-minimal,grubby,openssh-server,openssh-clients,sudo,glibc-langpack-en
+      apt:
+        - lz4,unzip,bzip2,pv,jq,git,ncdu,make,patch,bash,lsof,wget,uuid,tuned,nvme-cli,numactl,sysstat,iotop,htop,cronie
+        - python3,python3-pip,socat,lrzsz,net-tools,ipvsadm,telnet,ca-certificates,openssl,chrony,rsync,tcpdump
+        - zlib1g,acl,dnsutils,libreadline-dev,vim-tiny,openssh-server,openssh-client,sudo
+
+    #-----------------------------------------------------------------
+    # NODE_TUNE
+    #-----------------------------------------------------------------
+    node_disable_firewall: true       # disable node firewall? true by default
+    node_disable_selinux: true        # disable node selinux? true by default
+    node_disable_numa: false          # disable node numa, reboot required
+    node_disable_swap: false          # disable node swap, use with caution
+    node_static_network: true         # preserve dns resolver settings after reboot
+    node_disk_prefetch: false         # setup disk prefetch on HDD to increase performance
+    node_kernel_modules: [ softdog, br_netfilter, ip_vs, ip_vs_rr, ip_vs_wrr, ip_vs_sh ]
+    node_hugepage_count: 0            # number of 2MB hugepage, take precedence over ratio
+    node_hugepage_ratio: 0            # node mem hugepage ratio, 0 disable it by default
+    node_overcommit_ratio: 0          # node mem overcommit ratio, 0 disable it by default
+    node_tune: oltp                   # node tuned profile: none,oltp,olap,crit,tiny
+    node_sysctl_params: { }           # sysctl parameters in k:v format in addition to tuned
+
+    #-----------------------------------------------------------------
+    # NODE_ADMIN
+    #-----------------------------------------------------------------
+    node_data: /data                  # node main data directory, `/data` by default
+    node_admin_enabled: true          # create a admin user on target node?
+    node_admin_uid: 88                # uid and gid for node admin user
+    node_admin_username: dba          # name of node admin user, `dba` by default
+    node_admin_ssh_exchange: false    # exchange admin ssh key among node cluster
+    node_admin_pk_current: false      # add current user's ssh pk to admin authorized_keys
+    #node_admin_pk_list: []            # ssh public keys to be added to admin user
+    node_admin_pk_list:               # vagrant ssh public keys on admin node
+      - 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCyJ76rmrWUWQ/5cqQss0rIhqEMGGe8NPxdlpg1wijXRAnFny7YYLGsnx/9QjoK+lI9B4hBOmS/AWxmLekpC0xhGmqzlcLSU4Hh1fby0auRMc4uT0mRAoV7x/u98Bhl9iN9PuOji/hJScOXV+TFfekvMQ8IcvHa1PEWPUJT1wkgh2z0whNRkBQlrQFEOY9onhoarvgw4+kSktPHPcaE6vc2+jNRHfXiB8inIK2+/GC9ZG//Gpweu0VPc46X3k8jqVkERY7PYZgdh2Ot5YexNgXpnyYelZtXBfj/icIfZoDg2RRN9NNcaxoOjH1xfFPAP3BRyplEkqmb1e10LdX9VTLh ansible@ansible'
+
+    #-----------------------------------------------------------------
+    # NODE_TIME
+    #-----------------------------------------------------------------
+    node_timezone: ''                 # setup node timezone, empty string to skip
+    node_ntp_enabled: true            # enable chronyd time sync service?
+    node_ntp_servers:                 # ntp servers in `/etc/chrony.conf`
+      - pool pool.ntp.org iburst
+    node_crontab_overwrite: true      # overwrite or append to `/etc/crontab`?
+    node_crontab: [ ]                 # crontab entries in `/etc/crontab`
+
+    #-----------------------------------------------------------------
+    # NODE_PRE-CHECKS
+    #-----------------------------------------------------------------
+    minimal_ansible_version: 2.11.0
+    os_valid_distributions:
+      - RedHat
+      - Rocky
+      - OracleLinux
+      - Ubuntu
+      - Debian
+      - AlmaLinux
+    os_minimum_versions:
+      RedHat: 8
+      Rocky: 8.4
+      OracleLinux: 8
+      Ubuntu: 20.04
+      Debian: 10
+      AlmaLinux: 8.3
+
+    #-----------------------------------------------------------------
+    # PGSQL_INIT
+    #-----------------------------------------------------------------
+    # Basic settings
+    postgresql_version: 16
+    postgresql_version_terse: "{{ postgresql_version | replace('.', '') }}"  # Short version of the postgresql_version, used in some path and filenames
+    postgresql_encoding: "UTF-8"
+    postgresql_data_checksums: false
+    postgresql_pwfile: ""
+    
+    postgresql_locale_parts:
+      - "en_US" # Locale
+      - "UTF-8" # Encoding
+    postgresql_locale: "{{ postgresql_locale_parts | join('.') }}"
+    postgresql_ctype_parts:
+      - "en_US" # Locale
+      - "UTF-8" # Encoding
+    postgresql_ctype: "{{ postgresql_ctype_parts | join('.') }}"
+    
+    postgresql_env:
+      LC_ALL: "{{ postgresql_locale }}"
+      LC_LCTYPE: "{{ postgresql_locale }}"
+    
+    postgresql_admin_user: "postgres"
+    postgresql_default_auth_method: "peer"
+    postgresql_default_auth_method_hosts: "{{ 'scram-sha-256' if postgresql_version is version_compare('14', '>=') else 'md5' }}" # (>=14.0 scram-sha-256 is default value)
+
+    # The user/group that will run postgresql process or service
+    postgresql_service_user: "{{ postgresql_admin_user }}"
+    postgresql_service_user_pgsql_profile: false
+    postgresql_service_group: "{{ postgresql_admin_user }}"
+    
+    postgresql_cluster_name: "main" # postgres default is ''
+    postgresql_cluster_reset: false
+    
+    postgresql_database_owner: "{{ postgresql_admin_user }}"
+
+    #------------------------------------------------------------------------------
+    # FILE LOCATIONS
+    #------------------------------------------------------------------------------
+    # Location of postgres configuration files here
+    postgresql_conf_directory: "/etc/postgresql/{{ postgresql_version }}/{{ postgresql_cluster_name }}"
+    # HBA (Host Based Authentication) file
+    postgresql_hba_file: "{{ postgresql_conf_directory }}/pg_hba.conf"
+    # Ident configuration file
+    postgresql_ident_file: "{{ postgresql_conf_directory }}/pg_ident.conf"
+    # Use data in another directory
+    postgresql_varlib_directory_name: "postgresql"
+    postgresql_data_directory: "/var/lib/{{ postgresql_varlib_directory_name }}/{{ postgresql_version }}/{{ postgresql_cluster_name }}"
+    postgresql_wal_directory: ""
+    postgresql_wal_segsize: ""
+    postgresql_pid_directory: "/var/run/postgresql"
+    postgresql_cluster_name: "data"
+    postgresql_service_name: "postgresql-{{ postgresql_version }}"
+    postgresql_varlib_directory_name: "pgsql"
+    # Used to execute initdb
+    postgresql_bin_directory: "/usr/pgsql-{{postgresql_version}}/bin"
+    postgresql_unix_socket_directories:
+      - "{{ postgresql_pid_directory }}"
+      - /tmp
+    postgresql_pid_directory: "/var/run/postgresql"
+...

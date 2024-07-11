@@ -38,6 +38,7 @@
 #--------------------------------------------------------------#
 - name: setup node kernel modules
   tags: node_kernel
+  when: ansible_virtualization_type != "docker"
   block:
 
     - name: enable kernel module
