@@ -1,0 +1,76 @@
+---
+#-----------------------------------------------------------------
+# NODE_PACKAGE
+#-----------------------------------------------------------------
+proxy_env:                        # global proxy env when downloading packages
+  no_proxy: "localhost,127.0.0.1,10.0.0.0/8,192.168.0.0/16,*.pigsty,*.aliyun.com,mirrors.*,*.myqcloud.com,*.tsinghua.edu.cn"
+  # http_proxy:  # set your proxy here: e.g http://user:pass@proxy.xxx.com
+  # https_proxy: # set your proxy here: e.g http://user:pass@proxy.xxx.com
+  # all_proxy:   # set your proxy here: e.g http://user:pass@proxy.xxx.com
+node_epel_repo: true
+node_packages_default:            # used according to , if  not set
+  dnf:
+    - lz4,unzip,bzip2,pv,jq,git,ncdu,make,patch,bash,lsof,wget,uuid,tuned,nvme-cli,numactl,sysstat,iotop,htop,cronie
+    - python3,python3-pip,socat,lrzsz,net-tools,ipvsadm,telnet,ca-certificates,openssl,chrony,rsync,tcpdump
+    - zlib,yum,audit,bind-utils,readline,vim-minimal,grubby,openssh-server,openssh-clients,sudo,glibc-langpack-en
+  apt:
+    - lz4,unzip,bzip2,pv,jq,git,ncdu,make,patch,bash,lsof,wget,uuid,tuned,nvme-cli,numactl,sysstat,iotop,htop,cronie
+    - python3,python3-pip,socat,lrzsz,net-tools,ipvsadm,telnet,ca-certificates,openssl,chrony,rsync,tcpdump
+    - zlib1g,acl,dnsutils,libreadline-dev,vim-tiny,openssh-server,openssh-client,sudo
+
+#-----------------------------------------------------------------
+# NODE_TUNE
+#-----------------------------------------------------------------
+node_disable_firewall: true       # disable node firewall? true by default
+node_disable_selinux: true        # disable node selinux? true by default
+node_disable_numa: false          # disable node numa, reboot required
+node_disable_swap: false          # disable node swap, use with caution
+node_static_network: true         # preserve dns resolver settings after reboot
+node_disk_prefetch: false         # setup disk prefetch on HDD to increase performance
+node_kernel_modules: [ softdog, br_netfilter, ip_vs, ip_vs_rr, ip_vs_wrr, ip_vs_sh ]
+node_hugepage_count: 0            # number of 2MB hugepage, take precedence over ratio
+node_hugepage_ratio: 0            # node mem hugepage ratio, 0 disable it by default
+node_overcommit_ratio: 0          # node mem overcommit ratio, 0 disable it by default
+node_tune: oltp                   # node tuned profile: none,oltp,olap,crit,tiny
+node_sysctl_params: { }           # sysctl parameters in k:v format in addition to tuned
+
+#-----------------------------------------------------------------
+# NODE_ADMIN
+#-----------------------------------------------------------------
+node_data: /data                  # node main data directory,  by default
+node_admin_enabled: true          # create a admin user on target node?
+node_admin_uid: 88                # uid and gid for node admin user
+node_admin_username: dba          # name of node admin user,  by default
+node_admin_ssh_exchange: false    # exchange admin ssh key among node cluster
+node_admin_pk_current: false      # add current user's ssh pk to admin authorized_keys
+node_admin_pk_list: []            # ssh public keys to be added to admin user
+
+#-----------------------------------------------------------------
+# NODE_TIME
+#-----------------------------------------------------------------
+node_timezone: ''                 # setup node timezone, empty string to skip
+node_ntp_enabled: true            # enable chronyd time sync service?
+node_ntp_servers:                 # ntp servers in 
+  - pool pool.ntp.org iburst
+node_crontab_overwrite: true      # overwrite or append to ?
+node_crontab: [ ]                 # crontab entries in 
+
+#-----------------------------------------------------------------
+# NODE_PRE-CHECKS
+#-----------------------------------------------------------------
+minimal_ansible_version: 2.11.0
+os_valid_distributions:
+  - RedHat
+  - Rocky
+  - OracleLinux
+  - Ubuntu
+  - Debian
+  - AlmaLinux
+os_minimum_versions:
+  RedHat: 8
+  Rocky: 8.4
+  OracleLinux: 8
+  Ubuntu: 20.04
+  Debian: 10
+  AlmaLinux: 8.3
+...

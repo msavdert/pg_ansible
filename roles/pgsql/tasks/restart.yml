@@ -1,7 +1,0 @@
-# file: postgresql/tasks/restart.yml
-
-- name: restart postgresql
-  service:
-    name: "{{ postgresql_service_name }}"
-    state: restarted
-    enabled: yes
