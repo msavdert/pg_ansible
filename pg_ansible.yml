@@ -33,12 +33,12 @@ all:
     node_packages_default:            # used according to `os_package`, if `node_default_packages` not set
       dnf:
         - lz4,unzip,bzip2,pv,jq,git,ncdu,make,patch,bash,lsof,wget,uuid,tuned,nvme-cli,numactl,sysstat,iotop,htop,cronie
-        - python3,python3-pip,socat,lrzsz,net-tools,ipvsadm,telnet,ca-certificates,openssl,chrony,rsync,tcpdump
+        - python3,python3-pip,socat,lrzsz,net-tools,ipvsadm,telnet,ca-certificates,openssl,chrony,rsync,tcpdump,python-psycopg2
         - zlib,yum,audit,bind-utils,readline,vim-minimal,grubby,openssh-server,openssh-clients,sudo,glibc-langpack-en
       apt:
         - lz4,unzip,bzip2,pv,jq,git,ncdu,make,patch,bash,lsof,wget,uuid,tuned,nvme-cli,numactl,sysstat,iotop,htop,cronie
         - python3,python3-pip,socat,lrzsz,net-tools,ipvsadm,telnet,ca-certificates,openssl,chrony,rsync,tcpdump
-        - zlib1g,acl,dnsutils,libreadline-dev,vim-tiny,openssh-server,openssh-client,sudo
+        - zlib1g,acl,dnsutils,libreadline-dev,vim-tiny,openssh-server,openssh-client,sudo,python-psycopg2
 
     #-----------------------------------------------------------------
     # NODE_TUNE
@@ -130,7 +130,6 @@ all:
     postgresql_service_user_pgsql_profile: false
     postgresql_service_group: "{{ postgresql_admin_user }}"
     
-    postgresql_cluster_name: "main" # postgres default is ''
     postgresql_cluster_reset: false
     
     postgresql_database_owner: "{{ postgresql_admin_user }}"
@@ -144,13 +143,10 @@ all:
     postgresql_hba_file: "{{ postgresql_conf_directory }}/pg_hba.conf"
     # Ident configuration file
     postgresql_ident_file: "{{ postgresql_conf_directory }}/pg_ident.conf"
-    # Use data in another directory
-    postgresql_varlib_directory_name: "postgresql"
     postgresql_data_directory: "/var/lib/{{ postgresql_varlib_directory_name }}/{{ postgresql_version }}/{{ postgresql_cluster_name }}"
     postgresql_wal_directory: ""
     postgresql_wal_segsize: ""
     postgresql_pid_directory: "/var/run/postgresql"
-    postgresql_cluster_name: "data"
     postgresql_service_name: "postgresql-{{ postgresql_version }}"
     postgresql_varlib_directory_name: "pgsql"
     # Used to execute initdb
@@ -159,4 +155,21 @@ all:
       - "{{ postgresql_pid_directory }}"
       - /tmp
     postgresql_pid_directory: "/var/run/postgresql"
+
+    postgresql_default:
+      dnf:
+        postgresql_cluster_name: "data"
+        postgresql_varlib_directory_name: "postgresql"
+      apt:
+       postgresql_cluster_name: "main"
+       postgresql_varlib_directory_name: "postgresql"
+
+    postgresql_auth_method: "{{ ansible_fips  | ternary('scram-sha-256', 'md5') }}"
+
+    postgresql_hba_entries:
+      - {type: local, database: all, user: postgres, auth_method: peer}
+      - {type: local, database: all, user: all, auth_method: peer}
+      - {type: host, database: all, user: all, address: '127.0.0.1/32', auth_method: "{{ postgresql_auth_method }}"}
+      - {type: host, database: all, user: all, address: '::1/128', auth_method: "{{ postgresql_auth_method }}"}
+
 ...

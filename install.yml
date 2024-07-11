@@ -42,11 +42,20 @@
 #---------------------------------------------------------------
 # INIT PGSQL
 #---------------------------------------------------------------
-- name: PGSQL INIT            # init pgsql on all nodes
+- name: PGSQL INIT
   become: yes
   hosts: all
   gather_facts: yes
   tags: pgsql
   roles: [ { role: pgsql } ]
 
+#---------------------------------------------------------------
+# CONFIG PGSQL
+#---------------------------------------------------------------
+- name: PGSQL CONFIG
+  become: yes
+  hosts: all
+  gather_facts: yes
+  tags: pgconfig
+  roles: [ { role: pgconfig } ]
 ...
