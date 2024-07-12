@@ -1,3 +1,3 @@
-node_timezone: 'America/New_York'
+node_timezone: "America/New_York"
 node_ntp_servers:
   - pool us.pool.ntp.org iburst

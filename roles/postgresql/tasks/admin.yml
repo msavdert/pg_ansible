@@ -1,22 +1,6 @@
 ---
 #--------------------------------------------------------------#
-# Stage 1: Add /etc/profile                       [node_profile]
-#--------------------------------------------------------------#
-- name: write node etc profile
-  tags: node_profile
-  copy: src=node.sh dest=/etc/profile.d/node.sh mode=0644
-
-
-#--------------------------------------------------------------#
-# Stage 2: Setup pam ulimit for node users         [node_ulimit]
-#--------------------------------------------------------------#
-- name: set pam ulimit
-  tags: node_ulimit
-  copy: src=limits.conf dest=/etc/security/limits.d/limits.conf mode=0644
-
-
-#--------------------------------------------------------------#
-# Stage 3: Create data dir if not exists             [node_data]
+# Stage 1: Create data dir if not exists             [node_data]
 #--------------------------------------------------------------#
 - name: assure node data dir exists
   tags: node_data
@@ -26,17 +10,15 @@
     state: directory
     owner: root
     group: root
-    mode: '0777'
-
+    mode: "0777"
 
 #--------------------------------------------------------------#
-# Stage 5: Create default users/groups              [node_admin]
+# Stage 2: Create default users/groups              [node_admin]
 #--------------------------------------------------------------#
 - name: create os node users and groups
   tags: node_admin
   when: node_admin_enabled
   block:
-
     # admin user , group, privileges
     - name: create os user group admin
       group: name=admin gid={{ node_admin_uid }}
@@ -55,7 +37,7 @@
     - name: set ssh config no host checking
       lineinfile:
         path: /home/{{ node_admin_username }}/.ssh/config
-        regexp: '^StrictHostKeyChecking='
+        regexp: "^StrictHostKeyChecking="
         line: StrictHostKeyChecking=no
 
     # admin ssh exchange among cluster
@@ -92,4 +74,3 @@
         key: "{{ lookup('file', item) }}"
       with_fileglob:
         - "~/.ssh/id*.pub"
-...
