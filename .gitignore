@@ -1,2 +1,2 @@
-files/ansible
-files/ansible.pub
+files/ansible.key
+files/ansible.key.pub
