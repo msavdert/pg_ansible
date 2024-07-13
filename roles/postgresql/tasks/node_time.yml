@@ -2,7 +2,7 @@
 #--------------------------------------------------------------#
 # 1. Setup node timezone (if given)              [node_timezone]
 #--------------------------------------------------------------#
-- name: setup node timezone
+- name: Node Time | setup node timezone
   tags: node_timezone
   when: node_timezone is defined and node_timezone != ""
   timezone: name={{ node_timezone }}
@@ -10,40 +10,40 @@
 #--------------------------------------------------------------#
 # 2. Setup time services                              [node_ntp]
 #--------------------------------------------------------------#
-- name: setup time service
+- name: Node Time | setup time service
   tags: node_ntp
   when: node_ntp_enabled|bool
   block:
     # skip this because already installed in pkgs.yml
-    - name: install chrony package
+    - name: Node Time | install chrony package
       tags: node_ntp_install
       package: name=chrony state=present
 
     # config chrony service
-    - name: generate etc chrony conf
+    - name: Node Time | generate etc chrony conf
       tags: node_ntp_config
       template: src=chrony.conf.j2 dest=/etc/chrony.conf
 
     # launch chrony systemctl service
-    - name: launch ntpd service
+    - name: Node Time | launch ntpd service
       tags: node_ntp_launch
       systemd: name=chronyd enabled=true state=restarted
 
 #--------------------------------------------------------------#
 # Setup Node Crontab                                 [node_cron]
 #--------------------------------------------------------------#
-- name: setup node crontab
+- name: Node Time | setup node crontab
   tags: node_crontab
   when: node_crontab|length > 0
   block:
     # append entries to /etc/crontab, default behavior
-    - name: append etc crontab
+    - name: Node Time | append etc crontab
       when: not node_crontab_overwrite|bool
       lineinfile: path=/etc/crontab line="{{ item }}"
       with_items: "{{ node_crontab }}"
 
     # overwrite /etc/crontab if node_crontab_overwrite is true
-    - name: overwrite etc crontab
+    - name: Node Time | overwrite etc crontab
       when: node_crontab_overwrite|bool
       copy:
         dest: /etc/crontab

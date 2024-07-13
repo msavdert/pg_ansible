@@ -1,0 +1,8 @@
+postgresql_users:
+  - name: baz
+    password: pass2
+    state: "present" # optional; one of 'present', 'absent'
+
+postgresql_global_config_options:
+  - option: listen_addresses
+    value: "*"

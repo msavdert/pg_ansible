@@ -2,7 +2,7 @@
 #--------------------------------------------------------------#
 # Stage 1: Create data dir if not exists             [node_data]
 #--------------------------------------------------------------#
-- name: assure node data dir exists
+- name: Node Admin | assure node data dir exists
   tags: node_data
   when: node_data is defined and node_data != '' and node_data != '/'
   file:
@@ -15,39 +15,39 @@
 #--------------------------------------------------------------#
 # Stage 2: Create default users/groups              [node_admin]
 #--------------------------------------------------------------#
-- name: create os node users and groups
+- name: Node Admin | create os node users and groups
   tags: node_admin
   when: node_admin_enabled
   block:
     # admin user , group, privileges
-    - name: create os user group admin
+    - name: Node Admin | create os user group admin
       group: name=admin gid={{ node_admin_uid }}
     - name: create os user admin
       user: name={{ node_admin_username }} uid={{ node_admin_uid }} home=/home/{{ node_admin_username }} group=admin generate_ssh_key=yes
 
-    - name: grant admin group nopass sudo
+    - name: Node Admin | grant admin group nopass sudo
       copy:
         content: "%admin ALL=(ALL) NOPASSWD: ALL"
         dest: /etc/sudoers.d/{{ node_admin_username }}
         mode: 0440
 
-    - name: touch admin user ssh config
+    - name: Node Admin | touch admin user ssh config
       copy: src=ssh.config dest=/home/{{ node_admin_username }}/.ssh/config mode=0600 owner={{ node_admin_username }} group=admin
 
-    - name: set ssh config no host checking
+    - name: Node Admin | set ssh config no host checking
       lineinfile:
         path: /home/{{ node_admin_username }}/.ssh/config
         regexp: "^StrictHostKeyChecking="
         line: StrictHostKeyChecking=no
 
     # admin ssh exchange among cluster
-    - name: fetch admin public keys
+    - name: Node Admin | fetch admin public keys
       shell: cat /home/{{ node_admin_username }}/.ssh/id_rsa.pub
       args: { executable: /bin/bash }
       register: admin_ssh_keys
 
     # for all hosts, copy their admin ssh public key to each other
-    - name: exchange all admin ssh keys
+    - name: Node Admin | exchange all admin ssh keys
       when: node_admin_ssh_exchange|bool
       authorized_key: user={{ node_admin_username }} key="{{ item[0] }}"
       ignore_errors: true
@@ -57,7 +57,7 @@
         - "{{ play_hosts }}"
 
     # add additional public keys
-    - name: add admin public keys
+    - name: Node Admin | add admin public keys
       tags: node_admin_pk_list
       when: node_admin_pk_list is defined and node_admin_pk_list|length > 0
       authorized_key: user={{ node_admin_username }} key="{{ item }}"
@@ -66,7 +66,7 @@
         - "{{ node_admin_pk_list }}"
 
     # add current user public keys in ~/.ssh/id*.pub
-    - name: add current user public keys
+    - name: Node Admin | add current user public keys
       tags: node_admin_pk_current
       when: node_admin_pk_current|bool
       authorized_key:

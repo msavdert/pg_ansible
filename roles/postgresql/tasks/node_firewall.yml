@@ -4,11 +4,11 @@
 #--------------------------------------------------------------#
 # This behaviour may be changed in the future
 # It's acceptable to use this in isolated network environment
-- name: disable node firewall
+- name: Node Firewall | disable node firewall
   tags: node_firewall
   ignore_errors: true
   block:
-    - name: Disable Node Firewall
+    - name: Node Firewall | disable node firewall
       when: node_disable_firewall|bool and (ansible_pkg_mgr == 'dnf' or ansible_pkg_mgr == 'yum' or ansible_os_family == 'Debian')
       systemd: name={{ firewall_service_name }} state=stopped enabled=no
       vars:
@@ -16,7 +16,7 @@
           firewall_service_name: "{% if ansible_pkg_mgr is defined and ansible_pkg_mgr == 'apt' %}ufw{% else %}firewalld{% endif %}",
         }
 
-    - name: disable node selinux
+    - name: Node Firewall | disable node selinux
       when: node_disable_selinux|bool and ansible_pkg_mgr == 'dnf'
       shell: |
         setenforce 0;
