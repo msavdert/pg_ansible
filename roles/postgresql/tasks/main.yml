@@ -1,25 +1,42 @@
 ---
 #--------------------------------------------------------------#
+# 0. Gather Facts Always                          [gather_facts]
+#--------------------------------------------------------------#
+- name: Gather Facts
+  setup:
+  tags: always
+  when: ansible_facts == {}
+#--------------------------------------------------------------#
 # 1. Pre-checks                                 [node_prechecks]
 #--------------------------------------------------------------#
-- import_tasks: prechecks.yml
+- import_tasks: node_prechecks.yml
 
 #--------------------------------------------------------------#
 # 2. Firewall                                    [node_firewall]
 #--------------------------------------------------------------#
-- import_tasks: firewall.yml
+- import_tasks: node_firewall.yml
 
 #--------------------------------------------------------------#
 # 3. Packages                               [node_repo,node_pkg]
 #--------------------------------------------------------------#
-- import_tasks: pkg.yml
+- import_tasks: node_pkg.yml
 
 #--------------------------------------------------------------#
-# 4. ADMIN    [node_profile, node_ulimit, node_data, node_admin]
+# 4. Admin                                          [node_admin]
 #--------------------------------------------------------------#
-- import_tasks: admin.yml
+- import_tasks: node_admin.yml
 
 #--------------------------------------------------------------#
-# 5. TIME                   [node_timezone, node_ntp, node_cron]
+# 5. Time                   [node_timezone, node_ntp, node_cron]
 #--------------------------------------------------------------#
-- import_tasks: time.yml
+- import_tasks: node_time.yml
+
+#--------------------------------------------------------------#
+# 5. PGSQL Install                            [pgsql_initialize]
+#--------------------------------------------------------------#
+- import_tasks: pgsql_initialize.yml
+
+#--------------------------------------------------------------#
+# 6. PGSQL Configuration                   [pgsql_configuration]
+#--------------------------------------------------------------#
+- import_tasks: pgsql_config.yml

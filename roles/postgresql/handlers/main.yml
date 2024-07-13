@@ -1,5 +1,13 @@
-  - name: restart postgresql
-    service:
-      name: "{{ postgresql_service_name }}"
-      state: restarted
-      enabled: yes
+- name: restart postgresql
+  service:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+  with_items: "{{ postgresql_daemon[ansible_pkg_mgr] }}"
+
+- name: reload postgresql
+  service:
+    name: "{{ item }}"
+    state: reloaded
+    enabled: yes
+  with_items: "{{ postgresql_daemon[ansible_pkg_mgr] }}"

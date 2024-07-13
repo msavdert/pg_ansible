@@ -1,0 +1,48 @@
+---
+- name: Install PostgreSQL
+  package: name={{ item }} state=present
+  with_items: "{{ postgresql_packages[ansible_pkg_mgr] }}"
+
+- name: PostgreSQL | Disable postgresql module (necessary for RHEL8+)
+  command:
+    cmd: dnf module disable postgresql -y
+  when: ansible_os_family == "RedHat" and (ansible_distribution_major_version == '8' or ansible_distribution_major_version == '9')
+  register: disable_postgresql_module
+  changed_when:
+    - "disable_postgresql_module.rc == 0"
+    - "'Disabling modules:\\n postgresql' in disable_postgresql_module.stdout"
+
+- name: Check if PostgreSQL database is initialized | RedHat
+  stat:
+    path: "{{ postgresql_redhat_data_dir }}/PG_VERSION"
+  when: ansible_os_family == "RedHat"
+  register: pgdata_dir_version
+
+- name: Ensure PostgreSQL database is initialized | RedHat
+  command: >
+    {{ postgresql_redhat_bin_directory }}/initdb -D {{ postgresql_redhat_data_dir }}
+    {% if postgresql_data_checksums and postgresql_version is version_compare('9.3', '>=') %}--data-checksums{% endif %}
+  when: ansible_os_family == "RedHat" and not pgdata_dir_version.stat.exists
+  become: true
+  become_user: "{{ postgresql_user }}"
+
+- name: Check if PostgreSQL database is initialized | Debian
+  stat:
+    path: "{{ postgresql_debian_data_dir }}/PG_VERSION"
+  when: ansible_os_family == "Debian"
+  register: pgdata_dir_version
+
+- name: Ensure PostgreSQL database is initialized | Debian
+  command: >
+    {{ postgresql_redhat_bin_directory }}/initdb -D {{ postgresql_debian_data_dir }}
+    {% if postgresql_data_checksums and postgresql_version is version_compare('9.3', '>=') %}--data-checksums{% endif %}
+  when: ansible_os_family == "Debian" and not pgdata_dir_version.stat.exists
+  become: true
+  become_user: "{{ postgresql_user }}"
+
+- name: Ensure PostgreSQL is started and enabled on boot
+  service:
+    name: "{{ item }}"
+    state: "{{ postgresql_service_state }}"
+    enabled: "{{ postgresql_service_enabled }}"
+  with_items: "{{ postgresql_daemon[ansible_pkg_mgr] }}"

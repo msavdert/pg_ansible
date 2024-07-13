@@ -1,0 +1,29 @@
+---
+#--------------------------------------------------------------#
+# Create or Edit pg_hba.conf                            [pg_hba]
+#--------------------------------------------------------------#
+- name: create ca private key
+  tags: pg_hba
+  become: yes
+  become_user: "{{ postgresql_user }}"
+  block:
+    - name: PostgreSQL Config | Get Information
+      community.postgresql.postgresql_info:
+      register: pg_info
+    #    - debug:
+    #        msg:
+    #          - "{{ pg_info['settings']['hba_file']['setting'] }}"
+    #          - "{{ pg_info['version']['major'] }}"
+
+    - name: Configure host based authentication (if entries are configured).
+      template:
+        src: "pg_hba.conf.j2"
+        dest: "{{ pg_info['settings']['hba_file']['setting'] }}"
+        owner: "{{ postgresql_user }}"
+        group: "{{ postgresql_user }}"
+        mode: 0600
+      notify: reload postgresql
+      delegate_facts: true
+      when: postgresql_hba_entries | length > 0
+      vars:
+        postgresql_auth_method: "{{ 'scram-sha-256' if pg_info['version']['major'] > 15 else 'md5' }}"
