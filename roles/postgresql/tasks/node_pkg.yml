@@ -74,3 +74,8 @@
       environment: "{{ proxy_env | default({}) }}"
       package: name={{ item }} state=present
       with_items: "{{ node_default_packages | default(node_packages_default[ansible_pkg_mgr]) | default([]) }}"
+
+    - name: install extra node packages
+      environment: "{{ proxy_env | default({}) }}"
+      package: name={{ item }} state=latest
+      with_items: "{{ node_packages }}"

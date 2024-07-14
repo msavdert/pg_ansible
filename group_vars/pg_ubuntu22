@@ -1,8 +1,27 @@
 postgresql_users:
   - name: baz
     password: pass2
-    state: "present" # optional; one of 'present', 'absent'
+    state: "present"
+
+postgresql_databases:
+  - name: exampledb
 
 postgresql_global_config_options:
   - option: listen_addresses
     value: "*"
+  - option: max_wal_size
+    value: "254"
+  - option: work_mem
+    value: "64mb"
+
+node_packages:
+  - vim
+
+postgresql_hba_entries:
+  - {
+      type: host,
+      database: all,
+      user: all,
+      address: "172.28.5.161/32",
+      auth_method: "{{ postgresql_auth_method }}",
+    }

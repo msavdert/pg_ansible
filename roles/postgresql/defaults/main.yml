@@ -82,20 +82,7 @@ postgresql_global_config_options: []
 postgresql_hba_entries: []
 #  - { type: local, database: all, user: postgres, auth_method: peer }
 #  - { type: local, database: all, user: all, auth_method: peer }
-#  - {
-#      type: host,
-#      database: all,
-#      user: all,
-#      address: "127.0.0.1/32",
-#      auth_method: "{{ postgresql_auth_method }}",
-#    }
-#  - {
-#      type: host,
-#      database: all,
-#      user: all,
-#      address: "::1/128",
-#      auth_method: "{{ postgresql_auth_method }}",
-#    }
+#  - {type: host, database: all, user: all, address: '127.0.0.1/32', auth_method: "{{ postgresql_auth_method }}"}
 
 #-----------------------------------------------------------------
 # NODE_PACKAGE
@@ -108,6 +95,7 @@ proxy_env: # global proxy env when downloading packages
 node_epel_repo: true
 node_disable_selinux: true
 node_disable_firewall: true
+node_packages: []
 node_packages_default: # used according to , if  not set
   dnf:
     - sudo,cronie,python3-psycopg2,glibc-langpack-en

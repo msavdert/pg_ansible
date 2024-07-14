@@ -12,7 +12,7 @@
     enabled: yes
   with_items: "{{ postgresql_daemon[ansible_pkg_mgr] }}"
 
-- name: Reload postgresql service
+- name: reload or restart postgresql service
   service:
     name: "{{ item }}"
     state: "{{ foo_state | default('reloaded') }}"

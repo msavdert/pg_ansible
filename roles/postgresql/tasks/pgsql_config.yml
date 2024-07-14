@@ -32,24 +32,35 @@
 #--------------------------------------------------------------#
 # Config                                             [pg_config]
 #--------------------------------------------------------------#
-- name: PostgreSQL Config | configure global settings.
-  tags: [pg_config]
-  lineinfile:
-    dest: "{{ pg_info['settings']['config_file']['setting'] }}"
-    regexp: "^#?{{ item.option }}.+$"
-    line: "{{ item.option }} = '{{ item.value }}'"
-    state: "{{ item.state | default('present') }}"
-    mode: 0644
-  with_items: "{{ postgresql_global_config_options }}"
-  notify: reload postgresql
+- name: PostgreSQL Config | set postgresql parameter
+  tags: pg_config
+  become: yes
+  become_user: "{{ postgresql_user }}"
+  block:
+    - name: PostgreSQL Config | configure parameters.
+      community.postgresql.postgresql_set:
+        name: "{{ item.option }}"
+        value: "{{ item.value }}"
+      register: set
+      with_items: "{{ postgresql_global_config_options }}"
 
-- name: PostgreSQL Config | Restart postgresql service
-  tags: [pg_pending]
-  set_fact:
-    foo_state: restarted
-  changed_when: true
-  notify: Reload postgresql service
-  when: pg_info['settings']['listen_addresses']['pending_restart']
+    - name: Print the result if the setting changed
+      ansible.builtin.debug:
+        msg: "{{ item.name }} {{ item.prev_val_pretty }} >> {{ item.value_pretty }} restart_req: {{ item.restart_required }}"
+      with_items: "{{ set.results }}"
+      when: set.changed
+
+    #    - name: PostgreSQL Config | Get Information
+    #      community.postgresql.postgresql_info:
+    #      register: pg_info
+
+    - name: PostgreSQL Config | restart postgresql service
+      tags: [pg_pending]
+      set_fact:
+        foo_state: restarted
+      changed_when: true
+      notify: reload or restart postgresql service
+      when: pg_info['settings']['listen_addresses']['pending_restart']
 
 #--------------------------------------------------------------#
 # Create or edit pg_hba.conf                            [pg_hba]
@@ -94,9 +105,9 @@
   tags: pg_database
   postgresql_db:
     name: "{{ item.name }}"
-    lc_collate: "{{ item.lc_collate | default('en_US.UTF-8') }}"
-    lc_ctype: "{{ item.lc_ctype | default('en_US.UTF-8') }}"
-    encoding: "{{ item.encoding | default('UTF-8') }}"
+    lc_collate: "{{ item.lc_collate | default('') }}"
+    lc_ctype: "{{ item.lc_ctype | default('') }}"
+    encoding: "{{ item.encoding | default('') }}"
     template: "{{ item.template | default('template0') }}"
     login_host: "{{ item.login_host | default('localhost') }}"
     login_password: "{{ item.login_password | default(omit) }}"
