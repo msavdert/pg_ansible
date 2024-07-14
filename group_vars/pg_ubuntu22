@@ -2,17 +2,20 @@ postgresql_users:
   - name: baz
     password: pass2
     state: "present"
+  - name: foo
+    password: foo
+    state: "absent"
 
 postgresql_databases:
   - name: exampledb
 
 postgresql_global_config_options:
   - option: listen_addresses
-    value: "*"
+    value: "localhost"
   - option: max_wal_size
-    value: "254"
+    value: "256"
   - option: work_mem
-    value: "64mb"
+    value: "8mb"
 
 node_packages:
   - vim

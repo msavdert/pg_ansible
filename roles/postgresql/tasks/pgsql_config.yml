@@ -2,18 +2,6 @@
 #--------------------------------------------------------------#
 # Get postgresql facts                                 [pg_fact]
 #--------------------------------------------------------------#
-#- name: PostgreSQL Config | get postgresql database Information
-#  tags: [pg_hba, pg_config]
-#  community.postgresql.postgresql_info:
-#  become: true
-#  become_user: "{{ postgresql_user }}"
-#  register: pg_info
-#    - debug:
-#        msg:
-#          - "{{ pg_info['settings']['hba_file']['setting'] }}"
-#          - "{{ pg_info['version']['major'] }}"
-#          - "{{ pg_info['settings']['config_file']['setting'] }}"
-
 - name: PostgreSQL Config | get postgresql database Information
   tags: [pg_hba, pg_config, pg_pending]
   become: yes
@@ -22,12 +10,12 @@
     - name: PostgreSQL Config | Get Information
       community.postgresql.postgresql_info:
       register: pg_info
-    - debug:
-        msg:
-          - "{{ pg_info['settings']['hba_file']['setting'] }}"
-          - "{{ pg_info['version']['major'] }}"
-          - "{{ pg_info['settings']['config_file']['setting'] }}"
-          - "{{ pg_info['settings']['listen_addresses']['pending_restart'] }}"
+#    - debug:
+#        msg:
+#          - "{{ pg_info['settings']['hba_file']['setting'] }}"
+#          - "{{ pg_info['version']['major'] }}"
+#          - "{{ pg_info['settings']['config_file']['setting'] }}"
+#          - "{{ pg_info['settings']['listen_addresses']['pending_restart'] }}"
 
 #--------------------------------------------------------------#
 # Config                                             [pg_config]
@@ -42,25 +30,27 @@
         name: "{{ item.option }}"
         value: "{{ item.value }}"
       register: set
+      #      notify: reload postgresql
       with_items: "{{ postgresql_global_config_options }}"
 
-    - name: Print the result if the setting changed
-      ansible.builtin.debug:
-        msg: "{{ item.name }} {{ item.prev_val_pretty }} >> {{ item.value_pretty }} restart_req: {{ item.restart_required }}"
-      with_items: "{{ set.results }}"
-      when: set.changed
+    #    - debug:
+    #        msg:
+    #          - "{{ pg_info }}"
+    #          - "{{ set }}"
 
-    #    - name: PostgreSQL Config | Get Information
-    #      community.postgresql.postgresql_info:
-    #      register: pg_info
+    #    - name: Display variables
+    #      ansible.builtin.debug:
+    #        msg:
+    #          - "x: {{ set.results[0].changed }}"
+    #          - "y: {{ set.results[0].name }}"
+    #          - "z: {{ set.results[0].restart_required }}"
 
     - name: PostgreSQL Config | restart postgresql service
-      tags: [pg_pending]
-      set_fact:
-        foo_state: restarted
+      ansible.builtin.debug:
+        msg: "{{ set.results[0].name }} {{ set.results[0].prev_val_pretty }} >> {{ set.results[0].value_pretty }} restart_req: {{ set.results[0].restart_required }}"
+      when: set.results[0].changed and set.results[0].restart_required
       changed_when: true
-      notify: reload or restart postgresql service
-      when: pg_info['settings']['listen_addresses']['pending_restart']
+      notify: restart postgresql
 
 #--------------------------------------------------------------#
 # Create or edit pg_hba.conf                            [pg_hba]
@@ -92,6 +82,7 @@
     login_user: "{{ item.login_user | default(postgresql_user) }}"
     login_unix_socket: "{{ item.login_unix_socket | default(postgresql_unix_socket_directories[0]) }}"
     port: "{{ item.port | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
   with_items: "{{ postgresql_users }}"
   no_log: "{{ postgres_users_no_log }}"
   become: true
