@@ -147,6 +147,14 @@ all:
     #  - {type: host, database: all, user: all, address: '127.0.0.1/32', auth_method: "{{ postgresql_auth_method }}"}
 
     #-----------------------------------------------------------------
+    # NODE_PATCH
+    #-----------------------------------------------------------------
+    el_patching_required_packages: "yum-utils"
+    el_patching_reboot_timeout: 600
+    el_patching_method: "security"
+    el_patching_auto_reboot: false
+
+    #-----------------------------------------------------------------
     # NODE_PACKAGE
     #-----------------------------------------------------------------
     proxy_env: # global proxy env when downloading packages
