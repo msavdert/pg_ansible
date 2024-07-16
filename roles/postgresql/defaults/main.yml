@@ -86,6 +86,7 @@ postgresql_hba_entries: []
 
 #-----------------------------------------------------------------
 # NODE_PATCH
+# https://github.com/voidquark/el_patching
 #-----------------------------------------------------------------
 el_patching_required_packages: "yum-utils"
 el_patching_reboot_timeout: 600
