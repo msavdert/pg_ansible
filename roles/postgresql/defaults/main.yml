@@ -3,6 +3,7 @@
 # PGSQL_INSTALL
 #-----------------------------------------------------------------
 postgresql_version: "16"
+postgresql_port: 5432
 postgresql_user: "postgres"
 postgresql_data_checksums: true
 postgresql_debian_bin_directory: /usr/lib/postgresql/{{ postgresql_version }}/bin
@@ -27,6 +28,8 @@ postgresql_packages:
 #-----------------------------------------------------------------
 # PGSQL_CONFIG
 #-----------------------------------------------------------------
+# Whether to output user data when managing users.
+postgres_users_no_log: true
 postgresql_unix_socket_directories:
   - /var/run/postgresql
 # List of databases to be created (optional)
@@ -62,17 +65,22 @@ postgresql_users: []
 #   port: # defaults to not set
 #   state: # defaults to 'present'
 
-# Whether to output user data when managing users.
-postgres_users_no_log: true
-
 # List of schemas to be created (optional)
 postgresql_database_schemas: []
+#  - database: foobar           # database name
+#    schema: acme_baz           # schema name
+#    owner: baz                 # owner name
+#    state: present
 
 # List of user privileges to be applied (optional)
 postgresql_user_privileges: []
+#  - name: baz                   # user name
+#    db: foobar                  # database
+#    priv: "ALL"                 # privilege string format: example: INSERT,UPDATE/table:SELECT/anothertable:ALL
+#    role_attr_flags: "CREATEDB" # role attribute flags
 
 # Global configuration options that will be set in postgresql.conf.
-postgresql_global_config_options: []
+postgresql_options: []
 #  - option: listen_addresses
 #    value: *
 #  - option: log_directory
@@ -83,15 +91,6 @@ postgresql_hba_entries: []
 #  - { type: local, database: all, user: postgres, auth_method: peer }
 #  - { type: local, database: all, user: all, auth_method: peer }
 #  - {type: host, database: all, user: all, address: '127.0.0.1/32', auth_method: "{{ postgresql_auth_method }}"}
-
-#-----------------------------------------------------------------
-# NODE_PATCH
-# https://github.com/voidquark/el_patching
-#-----------------------------------------------------------------
-el_patching_required_packages: "yum-utils"
-el_patching_reboot_timeout: 600
-el_patching_method: "security"
-el_patching_auto_reboot: false
 
 #-----------------------------------------------------------------
 # NODE_PACKAGE
@@ -109,7 +108,16 @@ node_packages_default: # used according to , if  not set
   dnf:
     - sudo,cronie,python3-psycopg2,glibc-langpack-en
   apt:
-    - sudo,cron,python3-psycopg2
+    - sudo,cron,python3-psycopg2,libpq-dev
+
+#-----------------------------------------------------------------
+# NODE_PATCH
+# https://github.com/voidquark/el_patching
+#-----------------------------------------------------------------
+el_patching_required_packages: "yum-utils"
+el_patching_reboot_timeout: 600
+el_patching_method: "security"
+el_patching_auto_reboot: false
 
 #-----------------------------------------------------------------
 # NODE_ADMIN
