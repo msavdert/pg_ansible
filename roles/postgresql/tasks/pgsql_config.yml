@@ -3,7 +3,7 @@
 # Get postgresql facts                                 [pg_fact]
 #--------------------------------------------------------------#
 - name: PostgreSQL Config | get postgresql database Information
-  tags: [pg_hba, pg_config, pg_pending]
+  tags: [pg_hba, pg_config]
   become: yes
   become_user: "{{ postgresql_user }}"
   block:
@@ -27,16 +27,32 @@
   block:
     - name: PostgreSQL Config | configure parameters.
       community.postgresql.postgresql_set:
-        name: "{{ item.option }}"
+        name: "{{ item. name }}"
         value: "{{ item.value }}"
       register: set
       #      notify: reload postgresql
-      with_items: "{{ postgresql_global_config_options }}"
+      with_items: "{{ postgresql_options | default([]) }}"
+
+    - set_fact: pgconfchanged="{{ set.results[0].changed }}"
+        pg_res_req="{{ set.results[0].restart_required }}"
+        pg_name="{{ set.results[0].name }}"
+        pg_prev_val_pretty="{{ set.results[0].prev_val_pretty }}"
+        pg_value_prettyy="{{ set.results[0].value_pretty }}"
+      when: set.changed
+
+    - set_fact: pgconfchanged=false
+        pg_res_req=false
+      when: not set.changed
 
     #    - debug:
     #        msg:
-    #          - "{{ pg_info }}"
+    #          - "{{ pgconfchanged }}"
+    #          - "{{ pg_res_req }}"
+
+    #    - debug:
+    #        msg:
     #          - "{{ set }}"
+    #          - "{{ pg_info }}"
 
     #    - name: Display variables
     #      ansible.builtin.debug:
@@ -47,8 +63,9 @@
 
     - name: PostgreSQL Config | restart postgresql service
       ansible.builtin.debug:
-        msg: "{{ set.results[0].name }} {{ set.results[0].prev_val_pretty }} >> {{ set.results[0].value_pretty }} restart_req: {{ set.results[0].restart_required }}"
-      when: set.results[0].changed and set.results[0].restart_required
+        #msg: "{{ set.results[0].name }} {{ set.results[0].prev_val_pretty }} >> {{ set.results[0].value_pretty }} restart_req: {{ set.results[0].restart_required }}"
+        msg: "{{ pg_name }} {{ pg_prev_val_pretty }} >> {{ pg_value_prettyy }} restart_req: {{ pg_res_req }}"
+      when: pgconfchanged and pg_res_req
       changed_when: true
       notify: restart postgresql
 
@@ -69,12 +86,13 @@
   when: postgresql_hba_entries | length > 0
   vars:
     postgresql_auth_method: "{{ 'scram-sha-256' if pg_info['version']['major'] > 15 else 'md5' }}"
+
 #--------------------------------------------------------------#
 # Users                                                [pg_user]
 #--------------------------------------------------------------#
 - name: PostgreSQL Config | ensure postgresql users are present.
   tags: pg_user
-  postgresql_user:
+  community.postgresql.postgresql_user:
     name: "{{ item.name }}"
     password: "{{ item.password | default(omit) }}"
     login_host: "{{ item.login_host | default('localhost') }}"
@@ -94,7 +112,7 @@
 #--------------------------------------------------------------#
 - name: PostgreSQL Config | ensure postgresql databases are present.
   tags: pg_database
-  postgresql_db:
+  community.postgresql.postgresql_db:
     name: "{{ item.name }}"
     lc_collate: "{{ item.lc_collate | default('') }}"
     lc_ctype: "{{ item.lc_ctype | default('') }}"
@@ -111,10 +129,69 @@
   become: true
   become_user: "{{ postgresql_user }}"
   when: postgresql_databases|length > 0
+
 #--------------------------------------------------------------#
 # Schemas                                            [pg_schema]
 #--------------------------------------------------------------#
+- name: PostgreSQL | Add Schema to databases
+  tags: pg_schema
+  community.postgresql.postgresql_schema:
+    database: "{{ item.database }}"
+    schema: "{{ item.schema }}"
+    owner: "{{ item.owner | default(postgresql_user) }}"
+    login_host: "{{ item.login_host | default('localhost') }}"
+    login_password: "{{ item.login_password | default(omit) }}"
+    login_user: "{{ item.login_user | default(postgresql_user) }}"
+    login_unix_socket: "{{ item.login_unix_socket | default(postgresql_unix_socket_directories[0]) }}"
+    port: "{{ item.port | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
+  become: yes
+  become_user: "{{ postgresql_user }}"
+  no_log: "{{ postgres_users_no_log }}"
+  with_items: "{{ postgresql_database_schemas }}"
+  when: postgresql_databases|length > 0
 
 #--------------------------------------------------------------#
 # Users Privileges                                     [pg_priv]
 #--------------------------------------------------------------#
+#- name: PostgreSQL Config | privss
+#  tags: pg_user_priv
+#  become: yes
+#  become_user: "{{ postgresql_user }}"
+#  block:
+#    - name: PostgreSQL | Update the user privileges
+#      community.postgresql.postgresql_privs:
+#        role: "{{item.role}}"
+#        priv: "{{item.priv | default(omit)}}"
+#        obj: "{{ item.obj | default('omit') }}"
+#        schema: "{{ item.schema | default('public') }}"
+#        type: "{{ item.type | default('omit') }}"
+#        grant_option: "{{ item.grant_option | default('false') }}"
+#        state: "{{ item.state | default('present') }}"
+#        db: "{{item.db | default(omit)}}"
+#        port: "{{postgresql_port}}"
+#        login_host: "{{ item.login_host | default('localhost') }}"
+#        login_user: "{{ item.login_user | default(postgresql_user) }}"
+#        login_password: "{{ item.login_password | default(omit) }}"
+#        login_unix_socket: "{{ item.login_unix_socket | default(postgresql_unix_socket_directories[0]) }}"
+#      become: yes
+#      become_user: "{{ postgresql_user }}"
+#      with_items: "{{postgresql_user_privileges}}"
+#      when: postgresql_user_privileges|length > 0
+#      register: queries
+#    - debug:
+#        msg: "{{ queries.results[0].queries }}"
+
+- name: Set the user privileges
+  tags: pg_user_priv
+  community.postgresql.postgresql_privs:
+    database: "{{ item.db }}"
+    schema: "{{ item.schema | default(omit) }}"
+    objs: "{{ item.objs | default(omit) }}"
+    privs: "{{ item.privs }}"
+    type: "{{ item.type | default(omit) }}"
+    roles: "{{ item.roles | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
+  become: true
+  become_user: "{{ postgresql_user }}"
+  with_items: "{{ postgresql_privs | default([]) }}"
